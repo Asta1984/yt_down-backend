@@ -7,16 +7,11 @@ export default function errorHandler(
 
     console.error(err);
 
-    const status = err.status || 500;
+    const status = err.status;
 
     res.status(status).json({
-
         success: false,
-
-        message:
-            err.message ||
-            "Internal Server Error"
-
+        message:err.message
     });
 
 }

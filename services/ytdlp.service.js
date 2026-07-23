@@ -1,15 +1,13 @@
 import { runCommand } from "../utils/exec.js";
 
 export async function getVideoMetadata(url) {
+  const stdout = await runCommand("yt-dlp", [
+    "-J",
+    "--no-warnings",
+    url,
+  ]);
 
-    const stdout = await runCommand(
-        "yt-dlp",
-        [
-            "-J",
-            "--no-warnings",
-            url
-        ]
-    );
-
-    return JSON.parse(stdout);
+  return JSON.parse(stdout);
 }
+
+// streamVideo removed — handled by worker
