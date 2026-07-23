@@ -1,6 +1,5 @@
 import { execFile } from "child_process";
 import { promisify } from "util";
-import { spawn } from "child_process";
 
 const execFileAsync = promisify(execFile);
 
@@ -12,7 +11,8 @@ export async function runCommand(command, args = []) {
             command,
             args,
             {
-                maxBuffer: 1024 * 1024 * 20
+                maxBuffer: 1024 * 1024 * 20,
+                timeout: 30000 
             }
         );
 

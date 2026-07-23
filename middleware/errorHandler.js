@@ -7,7 +7,7 @@ export default function errorHandler(
 
     console.error(err);
 
-    const status = err.status;
+    const status = err.status || 500;
 
     res.status(status).json({
         success: false,

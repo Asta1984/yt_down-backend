@@ -103,9 +103,6 @@ export async function processDownloadJob(job) {
               `Invalid filepath from yt-dlp: ${filePath}`
             );
           }
-          if (!filePath.startsWith("/") && !/^[A-Za-z]:[\\\/]/.test(filePath)) {
-            throw new Error(`Invalid filepath: ${filePath}`);
-          }
           // Small delay to ensure file is fully written
           await new Promise((r) => setTimeout(r, 100));
 

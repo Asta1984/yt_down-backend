@@ -10,7 +10,7 @@ export const downloadQueue = new Queue("video-downloads", {
       type: "exponential",
       delay: 2000,
     },
-    removeOnComplete: true,
+    removeOnComplete: false,
     removeOnFail: false,
   },
 });
@@ -43,7 +43,7 @@ export async function getJobStatus(jobId) {
   }
 
   const state = await job.getState();
-  const progress = job._progress;
+  const progress = job.progress;
 
   return {
     success: true,

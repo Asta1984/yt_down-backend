@@ -44,12 +44,10 @@ export async function downloadVideo(req, res) {
 
   // Add job to queue
   const job = await downloadQueue.add(
-    { url, formatId },
-    {
-      jobId: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-    }
+  "video-download",          // job name (string)
+  { url, formatId },         // actual data
+  { jobId: `${Date.now()}-${Math.random().toString(36).substring(2, 11)}` }
   );
-
   res.json({
     success: true,
     message: "Download queued",
@@ -111,8 +109,8 @@ export async function getDownloadFile(req, res) {
   });
 
   // Cleanup temp file after download
-  res.on("finish", async () => {
-    const { cleanupTempFile } = await import("../utils/temp-storage.js");
-    await cleanupTempFile(filePath);
-  });
+  stream.on("close", async () => {
+  const { cleanupTempFile } = await import("../utils/temp-storage.js");
+  await cleanupTempFile(filePath);
+});
 }
