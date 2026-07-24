@@ -93,6 +93,14 @@ export async function getDownloadFile(req, res) {
 
   const { filePath, filename } = job.returnvalue;
 
+  // Safety check: file might already be cleaned up
+  const { existsSync } = await import("fs");
+  if (!existsSync(filePath)) {
+    const err = new Error("File expired or already downloaded, please re-queue");
+    err.status = 410; // Gone
+    throw err;
+  }
+
   res.setHeader("Content-Type", "application/octet-stream");
   res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
 
@@ -101,16 +109,27 @@ export async function getDownloadFile(req, res) {
 
   stream.pipe(res);
 
-  stream.on("error", (err) => {
-    console.error("Stream error:", err);
-    if (!res.headersSent) {
-      throw err;
+  // CORRECT: Wait for HTTP response to finish sending to client
+  res.on("finish", async () => {
+    const { cleanupTempFile } = await import("../utils/temp-storage.js");
+    await cleanupTempFile(filePath);
+  });
+
+  // Client disconnected before finish — cleanup anyway
+  res.on("close", async () => {
+    if (!res.writableEnded) {
+      stream.destroy();
+      const { cleanupTempFile } = await import("../utils/temp-storage.js");
+      await cleanupTempFile(filePath);
     }
   });
 
-  // Cleanup temp file after download
-  stream.on("close", async () => {
-  const { cleanupTempFile } = await import("../utils/temp-storage.js");
-  await cleanupTempFile(filePath);
-});
+  stream.on("error", (err) => {
+    console.error("Stream error:", err);
+    // Don't throw — destroys the response. Handle gracefully.
+    if (!res.headersSent) {
+      res.status(500).json({ error: "Failed to stream file" });
+    }
+    stream.destroy();
+  });
 }
