@@ -43,8 +43,9 @@ export async function getJobStatus(jobId) {
   }
 
   const state = await job.getState();
-  const progress = job.progress;
 
+  const progress = typeof job.progress === 'number' ? job.progress : 0
+  console.log(`[Status ${jobId}] state=${state} progress=${progress}`)      // ← add this
   return {
     success: true,
     jobId: job.id,

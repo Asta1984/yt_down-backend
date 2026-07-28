@@ -26,6 +26,7 @@ export async function processDownloadJob(job) {
         "--no-playlist",
         "--no-part",
         // Progress output
+        "--progress",
         "--newline",
         "--progress-template",
         "download:%(progress._percent_str)s",
@@ -36,22 +37,21 @@ export async function processDownloadJob(job) {
       ]);
 
       // Capture stdout
-      yt.stdout.on("data", async (data) => {
+      yt.stdout.on("data", (data) => {
         const text = data.toString();
         stdout += text;
 
-        // Match progress: download:12.5%
-        const progressMatch = text.match(
-          /download:\s*(\d+(?:\.\d+)?)%/
-        );
-        if (progressMatch) {
-          const progress = Math.floor(
-            Number(progressMatch[1])
-          );
-          try {
-            await job.updateProgress(progress);
-          } catch (err) {
-            console.error("Progress update error:", err);
+        const lines = text.split("\n");
+        for (const line of lines) {
+          const trimmed = line.trim();
+          // matches " 11.1%" or "100.0%" — no prefix
+          const progressMatch = trimmed.match(/^(\d+(?:\.\d+)?)%$/);
+          if (progressMatch) {
+            const progress = Math.floor(Number(progressMatch[1]));
+            console.log(`[Job ${job.id}] progress: ${progress}%`);
+            job.updateProgress(progress).catch(err =>
+              console.error("Progress update error:", err)
+            );
           }
         }
       });
@@ -70,64 +70,44 @@ export async function processDownloadJob(job) {
           )
         );
       });
-
       yt.on("close", async (code) => {
         if (code !== 0) {
-          return reject(
-            new Error(
-              stderr ||
-                `yt-dlp exited with code ${code}`
-            )
-          );
+          return reject(new Error(`yt-dlp exited with code ${code}`));
         }
 
         try {
-          // Get all lines from stdout
           const lines = stdout
             .split("\n")
-            .map((line) => line.trim())
-            .filter(Boolean);
+            .map(line => line.trim())
+            .filter(Boolean)
+            // filter OUT progress lines, keep only the filepath
+            .filter(line => !line.match(/^\d+(?:\.\d+)?%$/));
 
-          // The last line should be the filepath from --print after_move:filepath
           filePath = lines[lines.length - 1];
 
-          if (!filePath) {
-            throw new Error(
-              "No filepath output from yt-dlp"
-            );
+          if (!filePath || !filePath.startsWith("/")) {
+            throw new Error(`Invalid filepath from yt-dlp: ${filePath}`);
           }
 
-          // Validate it looks like a path (starts with / on Mac/Linux)
-          if (!filePath.startsWith("/")) {
-            throw new Error(
-              `Invalid filepath from yt-dlp: ${filePath}`
-            );
-          }
-          // Small delay to ensure file is fully written
-          await new Promise((r) => setTimeout(r, 100));
-
-          // Verify file exists
+          await new Promise(r => setTimeout(r, 100));
           await fs.stat(filePath);
-
           await job.updateProgress(100);
 
-          resolve({
-            filePath,
-            filename: path.basename(filePath),
-          });
+          resolve({ filePath, filename: path.basename(filePath) });
         } catch (err) {
           reject(err);
         }
       });
-    });
-  } catch (error) {
-    console.error(`Job ${job.id} failed:`, error);
+      });
 
-    // Cleanup temp file on error
-    if (filePath) {
-      await cleanupTempFile(filePath).catch(() => {});
+      } catch (error) {
+        console.error(`Job ${job.id} failed:`, error);
+
+        // Cleanup temp file on error
+        if (filePath) {
+          await cleanupTempFile(filePath).catch(() => {});
+        }
+
+        throw error;
+      }
     }
-
-    throw error;
-  }
-}
