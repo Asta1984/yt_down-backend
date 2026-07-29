@@ -1,5 +1,6 @@
 import { spawn } from "child_process";
 import { promises as fs } from "fs";
+import progressEmitter from "../utils/progress-emitter.js"
 import path from "path";
 import {
   getTempOutputTemplate,
@@ -52,6 +53,8 @@ export async function processDownloadJob(job) {
             job.updateProgress(progress).catch(err =>
               console.error("Progress update error:", err)
             );
+            // emit to SSE listeners
+            progressEmitter.emit(job.id, { progress, status: "active" });
           }
         }
       });
@@ -72,6 +75,8 @@ export async function processDownloadJob(job) {
       });
       yt.on("close", async (code) => {
         if (code !== 0) {
+          // emit failure so SSE client doesn't hang
+          progressEmitter.emit(job.id, { progress: 0, status: "failed" });
           return reject(new Error(`yt-dlp exited with code ${code}`));
         }
 
@@ -92,9 +97,12 @@ export async function processDownloadJob(job) {
           await new Promise(r => setTimeout(r, 100));
           await fs.stat(filePath);
           await job.updateProgress(100);
+          // emit completion so SSE client closes
+          progressEmitter.emit(job.id, { progress: 100, status: "completed" });
 
           resolve({ filePath, filename: path.basename(filePath) });
         } catch (err) {
+          progressEmitter.emit(job.id, { progress: 0, status: "failed" });
           reject(err);
         }
       });
