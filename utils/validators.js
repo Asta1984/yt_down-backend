@@ -1,3 +1,14 @@
+export function sanitizeFilename(name) {
+  if (!name || typeof name !== "string") return null;
+
+  const cleaned = name
+    .replace(/[/\\?%*:|"<>\x00-\x1f]/g, "")
+    .trim()
+    .slice(0, 150);
+
+  return cleaned.length > 0 ? cleaned : null;
+}
+
 export function validateUrl(url) {
 
     if (!url) {
@@ -27,5 +38,24 @@ export function validateUrl(url) {
             message: "Only HTTP/HTTPS URLs are allowed"
         };
     }
-
+}
+// Allows plain ids ("137"), compound video+audio selectors ("137+bestaudio/best"),
+// and yt-dlp keywords (best, bestaudio, bestvideo). Blocks anything with spaces,
+// quotes, or shell-ish characters that has no business being in a format selector.
+const FORMAT_ID_PATTERN = /^[a-zA-Z0-9_.\-\/+\[\]<>=]+$/;
+ 
+export function validateFormatId(formatId) {
+    if (!formatId || typeof formatId !== "string") {
+        throw {
+            status: 400,
+            message: "formatId is required"
+        };
+    }
+ 
+    if (formatId.length > 100 || !FORMAT_ID_PATTERN.test(formatId)) {
+        throw {
+            status: 400,
+            message: "Invalid formatId"
+        };
+    }
 }

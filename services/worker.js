@@ -8,7 +8,7 @@ import {
 } from "../utils/temp-storage.js";
 
 export async function processDownloadJob(job) {
-  const { url, formatId } = job.data;
+  const { url, formatId, embedThumbnail } = job.data;
   let filePath;
 
   try {
@@ -18,14 +18,35 @@ export async function processDownloadJob(job) {
     return await new Promise((resolve, reject) => {
       let stdout = "";
       let stderr = "";
-
-      const yt = spawn("yt-dlp", [
+      const args = [
         "-f",
         formatId,
+        // Only kicks in when -f resolves to separate video+audio streams
+        // (e.g. "137+bestaudio") that yt-dlp has to mux with ffmpeg.
+        "--merge-output-format",
+        "mp4",
         "-o",
         outputTemplate,
         "--no-playlist",
         "--no-part",
+      ];
+ 
+      if (embedThumbnail) {
+        // Audio-only path: normalize to mp3 (guarantees thumbnail/ID3
+        // embedding works reliably across players), embed the video's
+        // thumbnail as cover art, and map the channel name to the
+        // artist tag.
+        args.push(
+          "-x",
+          "--audio-format", "",
+          "--audio-quality", "",
+          "--embed-thumbnail",
+          "--embed-metadata",
+          "--parse-metadata", "%(uploader|)s:%(meta_artist)s"
+        );
+      }
+ 
+      args.push(
         // Progress output
         "--progress",
         "--newline",
@@ -34,8 +55,10 @@ export async function processDownloadJob(job) {
         // Final filepath
         "--print",
         "after_move:filepath",
-        url,
-      ]);
+        url
+      );
+ 
+      const yt = spawn("yt-dlp", args);
 
       // Capture stdout
       yt.stdout.on("data", (data) => {
@@ -45,11 +68,10 @@ export async function processDownloadJob(job) {
         const lines = text.split("\n");
         for (const line of lines) {
           const trimmed = line.trim();
-          // matches " 11.1%" or "100.0%" — no prefix
           const progressMatch = trimmed.match(/^(\d+(?:\.\d+)?)%$/);
           if (progressMatch) {
             const progress = Math.floor(Number(progressMatch[1]));
-            console.log(`[Job ${job.id}] progress: ${progress}%`);
+            //console.log(`[Job ${job.id}] progress: ${progress}%`);
             job.updateProgress(progress).catch(err =>
               console.error("Progress update error:", err)
             );

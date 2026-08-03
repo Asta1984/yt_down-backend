@@ -1,6 +1,8 @@
 import { getVideoMetadata } from "../services/ytdlp.service.js";
 import { downloadQueue, getJobStatus } from "../services/queue.service.js";
-import { validateUrl } from "../utils/validators.js";
+import { validateUrl, sanitizeFilename, validateFormatId} from "../utils/validators.js";
+import contentDisposition from "content-disposition";
+
 
 // GET video metadata
 export async function getVideoInfo(req, res) {
@@ -25,7 +27,10 @@ export async function getVideoInfo(req, res) {
 
 // Queue download job (new approach)
 export async function downloadVideo(req, res) {
-  const { url, formatId } = req.body;
+  const { url, formatId, filename, videoTitle } = req.body;
+  // Only true for audio-only downloads; sanitize to a strict boolean
+  // so nothing but true/false ever reaches the job data.
+  const embedThumbnail = req.body.embedThumbnail === true;
 
   // Validate inputs
   if (!url || !formatId) {
@@ -36,16 +41,20 @@ export async function downloadVideo(req, res) {
 
   try {
     validateUrl(url);
+    validateFormatId(formatId);
+
   } catch (validationErr) {
     const err = new Error(validationErr.message);
     err.status = validationErr.status;
     throw err;
   }
-
+   // customFilename: explicit user edit takes priority, then video title, then yt-dlp UUID name
+  const customFilename = sanitizeFilename(filename) ?? sanitizeFilename(videoTitle) ?? null;
+  
   // Add job to queue
   const job = await downloadQueue.add(
   "video-download",          // job name (string)
-  { url, formatId },         // actual data
+  { url, formatId, customFilename, embedThumbnail },         // actual data
   { jobId: `${Date.now()}-${Math.random().toString(36).substring(2, 11)}` }
   );
   res.json({
@@ -77,6 +86,7 @@ export async function getDownloadFile(req, res) {
 
   const job = await downloadQueue.getJob(jobId);
 
+
   if (!job) {
     const err = new Error("Job not found");
     err.status = 404;
@@ -100,9 +110,19 @@ export async function getDownloadFile(req, res) {
     err.status = 410; // Gone
     throw err;
   }
-
+   // If a custom filename was supplied, use it for the served name but keep
+  // the real extension so the file still opens correctly.
+  const { customFilename } = job.data;
+  const ext = filename.includes(".") ? filename.slice(filename.lastIndexOf(".")) : "";
+  const servedFilename = customFilename ? `${customFilename}${ext}` : filename;
+  console.log("servedFilename:", JSON.stringify(servedFilename));
+  // console.log([...servedFilename].map(c => ({
+  //   char: c,
+  //   code: c.charCodeAt(0)
+  // }))
+  // );
+  res.setHeader("Content-Disposition",contentDisposition(servedFilename));
   res.setHeader("Content-Type", "application/octet-stream");
-  res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
 
   const { createReadStream } = await import("fs");
   const stream = createReadStream(filePath);

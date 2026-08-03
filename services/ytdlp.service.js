@@ -10,4 +10,3 @@ export async function getVideoMetadata(url) {
   return JSON.parse(stdout);
 }
 
-// streamVideo removed — handled by worker
