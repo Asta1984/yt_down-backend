@@ -1,6 +1,6 @@
 import { getVideoMetadata } from "../services/ytdlp.service.js";
 import { downloadQueue, getJobStatus } from "../services/queue.service.js";
-import { validateUrl, sanitizeFilename, validateFormatId} from "../utils/validators.js";
+import { validateUrl, sanitizeFilename, validateFormatId, resolveAudioFormat } from "../utils/validators.js";
 import contentDisposition from "content-disposition";
 
 
@@ -31,7 +31,10 @@ export async function downloadVideo(req, res) {
   // Only true for audio-only downloads; sanitize to a strict boolean
   // so nothing but true/false ever reaches the job data.
   const embedThumbnail = req.body.embedThumbnail === true;
-
+    // Codec-matched target container for audio-only downloads (picked by the
+  // frontend from the source acodec). Falls back to "mp3" if missing/invalid.
+  const audioFormat = resolveAudioFormat(req.body.audioFormat);
+ 
   // Validate inputs
   if (!url || !formatId) {
     const err = new Error("url and formatId are required");
@@ -54,7 +57,7 @@ export async function downloadVideo(req, res) {
   // Add job to queue
   const job = await downloadQueue.add(
   "video-download",          // job name (string)
-  { url, formatId, customFilename, embedThumbnail },         // actual data
+  { url, formatId, customFilename, embedThumbnail, audioFormat },         // actual data
   { jobId: `${Date.now()}-${Math.random().toString(36).substring(2, 11)}` }
   );
   res.json({

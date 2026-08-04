@@ -59,3 +59,16 @@ export function validateFormatId(formatId) {
         };
     }
 }
+ 
+// Mirrors AudioTarget in the frontend's src/lib/format.ts — keep in sync.
+const ALLOWED_AUDIO_FORMATS = new Set(["m4a", "mp3", "opus", "vorbis", "flac", "wav"]);
+ 
+// Returns a safe value to actually use (falls back to "mp3" for anything
+// missing/invalid) rather than throwing, since this only affects an
+// optional quality optimization, not whether the download can proceed.
+export function resolveAudioFormat(audioFormat) {
+    if (typeof audioFormat === "string" && ALLOWED_AUDIO_FORMATS.has(audioFormat)) {
+        return audioFormat;
+    }
+    return "mp3";
+}

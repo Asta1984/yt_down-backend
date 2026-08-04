@@ -8,7 +8,7 @@ import {
 } from "../utils/temp-storage.js";
 
 export async function processDownloadJob(job) {
-  const { url, formatId, embedThumbnail } = job.data;
+  const { url, formatId, embedThumbnail, audioFormat } = job.data;
   let filePath;
 
   try {
@@ -38,8 +38,8 @@ export async function processDownloadJob(job) {
         // artist tag.
         args.push(
           "-x",
-          "--audio-format", "",
-          "--audio-quality", "",
+          "--audio-format", audioFormat || "mp3",
+          "--audio-quality", "0",
           "--embed-thumbnail",
           "--embed-metadata",
           "--parse-metadata", "%(uploader|)s:%(meta_artist)s"
