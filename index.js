@@ -23,7 +23,7 @@ process.on("SIGTERM", async () => {
   process.exit(0);
 });
 
-const PORT = process.env.PORT;
+const PORT = Number(process.env.PORT || 3000);
 
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
