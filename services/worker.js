@@ -2,10 +2,12 @@ import { spawn } from "child_process";
 import { promises as fs } from "fs";
 import progressEmitter from "../utils/progress-emitter.js"
 import path from "path";
+import dotenv from "dotenv";
 import {
   getTempOutputTemplate,
   cleanupTempFile,
 } from "../utils/temp-storage.js";
+dotenv.config();
 
 export async function processDownloadJob(job) {
   const { url, formatId, embedThumbnail, audioFormat } = job.data;
