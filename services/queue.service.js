@@ -1,9 +1,25 @@
 import { Queue, Worker } from "bullmq";
-import redis from "../config/redis.js";
 import { processDownloadJob } from "./worker.js";
 
+// BullMQ works best with a plain connection config rather than a shared
+// ioredis instance — it manages its own connections internally and avoids
+// the race condition where the worker starts before Redis is reachable.
+function getRedisConnection() {
+  if (process.env.REDIS_URL) {
+    return process.env.REDIS_URL;
+  }
+  return {
+    host: process.env.REDIS_HOST ?? "localhost",
+    port: Number(process.env.REDIS_PORT ?? 6379),
+    maxRetriesPerRequest: null,
+    enableReadyCheck: false,
+  };
+}
+
+const connection = getRedisConnection();
+
 export const downloadQueue = new Queue("video-downloads", {
-  connection: redis,
+  connection,
   defaultJobOptions: {
     attempts: 3,
     backoff: {
@@ -16,7 +32,7 @@ export const downloadQueue = new Queue("video-downloads", {
 });
 
 export const downloadWorker = new Worker("video-downloads", processDownloadJob, {
-  connection: redis,
+  connection,
   concurrency: 4,
 });
 
