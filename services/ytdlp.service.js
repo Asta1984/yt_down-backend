@@ -4,6 +4,7 @@ export async function getVideoMetadata(url) {
   const stdout = await runCommand("yt-dlp", [
     "-J",
     "--no-warnings",
+    "--extractor-args", "youtube:player_client=android",
     url,
   ]);
 

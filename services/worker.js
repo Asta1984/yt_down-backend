@@ -26,6 +26,8 @@ export async function processDownloadJob(job) {
         "--merge-output-format",
         "mp4",
         "-o",
+        "--extractor-args", 
+        "youtube:player_client=android",
         outputTemplate,
         "--no-playlist",
         "--no-part",
