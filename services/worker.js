@@ -21,16 +21,13 @@ export async function processDownloadJob(job) {
       const args = [
         "-f",
         formatId,
-        // Only kicks in when -f resolves to separate video+audio streams
-        // (e.g. "137+bestaudio") that yt-dlp has to mux with ffmpeg.
         "--merge-output-format",
         "mp4",
         "-o",
         outputTemplate,
-        "--extractor-args", 
-        "youtube:player_client=android",
         "--no-playlist",
         "--no-part",
+        ...(process.env.YTDLP_PROXY ? ["--proxy", process.env.YTDLP_PROXY] : []),
       ];
  
       if (embedThumbnail) {
