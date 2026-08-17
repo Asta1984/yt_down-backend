@@ -5,12 +5,6 @@ services:
     volumes:
       - redis-data:/data
 
-  warp:
-    image: dublok/cloudflare-warp:latest
-    restart: unless-stopped
-    volumes:
-      - warp-data:/var/lib/cloudflare-warp
-
   backend:
     build: .
     restart: unless-stopped
@@ -21,10 +15,8 @@ services:
       REDIS_HOST: redis
       REDIS_PORT: 6379
       CLIENT_URL: ${CLIENT_URL:-http://localhost:5173}
-      YTDLP_PROXY: socks5://warp:1080
     depends_on:
       - redis
-      - warp 
 
   caddy:
     image: caddy:2-alpine
@@ -43,5 +35,4 @@ volumes:
   redis-data:
   caddy-data:
   caddy-config:
-  warp-data:
  
