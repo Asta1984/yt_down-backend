@@ -7,9 +7,24 @@ import cors from "cors";
 
 
 dotenv.config();
+const allowedOrigins = (process.env.CLIENT_URL ?? "http://localhost:5173")
+  .split(",")
+  .map((o) => o.trim())
+  .filter(Boolean);
 
 const app = express();
-app.use(cors({ origin: "http://localhost:5173" }));
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      // no origin = server-to-server/curl/same-origin requests, allow those
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error(`CORS: origin ${origin} not allowed`));
+      }
+    },
+  })
+);
 app.use(express.json());
 app.use("/api", videoRoutes);
 

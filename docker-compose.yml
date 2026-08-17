@@ -1,0 +1,38 @@
+services:
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    volumes:
+      - redis-data:/data
+
+  backend:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    environment:
+      PORT: 5000
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      CLIENT_URL: ${CLIENT_URL:-http://localhost:5173}
+    depends_on:
+      - redis
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"   
+      - "443:443" 
+    volumes:  
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy-data:/data      
+      - caddy-config:/config
+    depends_on:
+      - backend
+ 
+volumes:
+  redis-data:
+  caddy-data:
+  caddy-config:
+ 
